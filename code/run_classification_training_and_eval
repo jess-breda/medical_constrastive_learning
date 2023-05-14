@@ -1,0 +1,251 @@
+### Classification task
+# Written by Jess Breda & Claira Fucetola
+
+import torch
+from data_loading import *
+import torch.nn as nn
+import seaborn as sns
+from cnn_models import *
+
+
+def run_classification_training(params):
+    """
+    params: Parameters for configuring training
+        params["train_subset]
+        params["test_subset]
+        params["batch_size"]
+        params["shuffle_batch"]
+        params["learning_rate"]
+        params["momentum"]
+        params["num_epochs"]
+        params["fname"]
+    """
+
+    train_subset = params.get("train_subset", 10000)
+    test_subset = params.get("test_subset", 2000)
+    bs = params.get("batch_size", 32)
+    sh = params.get("shuffle_batch", True)
+
+    _, train_loader, _, test_loader = get_mnist_data_loaders(
+        batch_size=bs, train_subset=train_subset, test_subset=test_subset, shuffle=sh
+    )
+    print(
+        f"{len(train_loader.dataset)} train images and {len(test_loader.dataset)} test images loaded"
+    )
+
+    #######################################
+    ##  LOAD PRETRAINED MODEL           ###
+    saved_posttrain_state_dict = torch.load(
+        "/content/gdrive/MyDrive/Classes/Spring 2023/COS 429/final_project/end_JModel.pth"
+    )
+    model = MnistModel(mode="classification", freeze_features=True).to(device)
+    # Load the saved state_dict into the new model
+    model.load_state_dict(saved_posttrain_state_dict)
+    ########################################
+
+    ########################################
+    ##     FOR NORMAL CLASSIFICATION     ###
+    # model = MnistModel(mode = 'classification').to(device)
+    ########################################
+
+    trained_model, performance = classification_train(
+        train_loader, test_loader, model, params=params
+    )
+
+    return trained_model, performance
+
+
+def classification_train(train_loader, test_loader, model, params):
+    # get params
+    lr = params.get("learning_rate", 0.01)
+    mo = params.get("momentum", 0.9)
+    nep = params.get("num_epochs", 5)
+    vf = params.get("val_freq", 5)
+    fname = params.get("fname", "classification_model")
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=mo)
+
+    epoch_train_loss = -99 * np.ones(nep)
+    epoch_train_acc = -99 * np.ones(nep)
+    epoch_val_loss = -99 * np.ones(int(nep / vf))
+    epoch_val_acc = -99 * np.ones(int(nep / vf))
+
+    pre_train_conf_mat = generate_confusion_matrix(model, test_loader)
+
+    ## TRAINING LOOP
+    for ep in range(nep):
+        # initialize
+        train_loss = 0.0
+        train_correct = 0
+
+        for data, target in train_loader:
+            model.train()  # turn on batch norm layers
+            optimizer.zero_grad()  # reset gradients
+            _, z = model(data.to(device))  # embedding, softmax
+
+            ## Convert labels to digits 0-14 for classification
+            targ_labels = []
+            for row in target.cpu():
+                lab = np.where(row == 1)[0]
+                if lab.size == 0:
+                    targ_labels.append(0)
+                else:
+                    targ_labels.append(lab[0] + 1)
+            target = torch.tensor(targ_labels).to(device)
+
+            loss = criterion(z, target)  # compute loss
+            loss.backward()  # calculate gradients
+            optimizer.step()  # update weights
+
+            # get predicted label
+            pred = z.argmax(dim=1, keepdim=True)
+
+            # update counters
+            train_loss += loss.item() * data.size(0)
+            train_correct += pred.eq(target.view_as(pred)).sum().item()
+
+        # calculate train summary
+        train_loss /= len(train_loader.dataset)  # batch averaged (not summed)
+        train_acc = 100.0 * train_correct / len(train_loader.dataset)
+        epoch_train_loss[ep] = train_loss
+        epoch_train_acc[ep] = train_acc
+
+        print(
+            f"Epoch {ep + 1} / {nep} complete, train loss: {train_loss:.6f}, acc: {train_acc:.2f}%"
+        )
+
+        # run test
+        if (ep + 1) % vf == 0:
+            val_loss, val_acc = run_classification_validation(
+                test_loader, model, criterion
+            )
+
+            # update counters
+            idx = int(((ep + 1) / vf) - 1)
+            epoch_val_loss[idx] = val_loss
+            epoch_val_acc[idx] = val_acc
+
+    print(f"Finished Training!")
+    post_train_conf_mat = generate_confusion_matrix(model, test_loader)
+
+    performance = {
+        "train_loss": epoch_train_loss,
+        "train_acc": epoch_train_acc,
+        "val_loss": epoch_val_loss,
+        "val_acc": epoch_val_acc,
+        "pre_train_conf_mat": pre_train_conf_mat,
+        "post_train_conf_mat": post_train_conf_mat,
+    }
+    torch.save(
+        model.state_dict(),
+        "/content/gdrive/MyDrive/Classes/Spring 2023/COS 429/final_project/end_classificationHardTrip.pth",
+    )  # modified for my saving
+
+    return model, performance
+
+
+# def classification_train(train_loader, test_loader, model, params):
+#     lr = params.get("learning_rate", 0.01)
+#     mo = params.get("momentum", 0.9)
+#     nep = params.get("num_epochs", 5)
+#     fname = params.get("fname", "classification_model")
+
+#     # compute confusion matrix pre_training
+
+
+###################################
+#              EVAL               #
+###################################
+
+
+def run_classification_validation(test_loader, model, criterion):
+    # initialize
+    val_loss = 0.0
+    val_correct = 0
+    model.eval()  # turn off batch norm layers
+
+    # make sure gradients aren't be calculated
+    with torch.no_grad():
+        for data, target in test_loader:
+            # forward pass full test set
+            _, z = model(data.to(device))
+            # print(target)
+
+            # calculate loss
+            targ_labels = []
+
+            for row in target.cpu():
+                lab = np.where(row == 1)[0]
+                if lab.size == 0:
+                    targ_labels.append(0)
+                else:
+                    targ_labels.append(lab[0] + 1)
+
+            target = torch.tensor(targ_labels).to(device)
+            loss = criterion(z, target)
+
+            # get predicted label
+            pred = z.argmax(dim=1, keepdim=True)
+            # print(pred)
+
+            # update counters
+            val_loss += loss.item() * data.size(0)
+            val_correct += pred.eq(target.view_as(pred)).sum().item()
+
+    # calculate validation summary
+    val_loss /= len(test_loader.dataset)
+    val_acc = 100.0 * val_correct / len(test_loader.dataset)
+    print(f"Val Loss: {val_loss:.6f}, Accuracy: {val_acc:.2f}%")
+
+    # TODO- return if you want!
+    return val_loss, val_acc
+
+
+def generate_confusion_matrix(model, test_loader):
+    # Set your model to evaluation mode
+    model.eval()
+
+    # Disable gradient calculations using torch.no_grad()
+    with torch.no_grad():
+        # Loop over the test data and perform inference
+        y_true = []
+        y_hat = []
+
+        for data, target in test_loader:
+            # Forward pass
+            _, z = model(data.to(device))
+
+            # Compute the predictions
+            pred = z.argmax(dim=1)
+
+            # Convert labels to 0-14
+            targ_labels = []
+            for row in target.cpu():
+                lab = np.where(row == 1)[0]
+                if lab.size == 0:
+                    targ_labels.append(0)
+                else:
+                    targ_labels.append(lab[0] + 1)
+
+            # Append the true and predicted labels to the lists
+            y_true.append(targ_labels)
+            y_hat.append(pred.cpu())
+
+        # Concatenate the lists into arrays
+        y_true = np.concatenate(y_true)
+        y_hat = np.concatenate(y_hat)
+
+        # Compute the confusion matrix
+        conf_mat = confusion_matrix(y_true, y_hat)
+
+    return conf_mat
+
+
+def plot_confusion_matrix(conf_mat, ax, title="Confusion Matrix"):
+    sns.heatmap(conf_mat, annot=True, cmap="Blues", fmt="d", ax=ax)
+
+    # Set the axis labels and title
+    ax.set(xlabel="Predicted Label", ylabel="True Label", title=title)
+
+    return None
