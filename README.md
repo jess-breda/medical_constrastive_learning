@@ -17,7 +17,7 @@ To run on Google Colab, see [here](https://colab.research.google.com/drive/1SurN
 **Findings**: In summary we found that pre-training with a contrastive triplet loss on triplets where the positive image was augmented resulted in a *6% increase in accuracy* and a reduced tendency to randomly classify images when compared to no pre-training.
 
 <p align="center">
-  <img src="https://github.com/jess-breda/medical_constrastive_learning/assets/53059059/0a674a83-1586-45ae-8020-994542ed44da" alt="Network Accuracy and Top-1 Accuracy">
+  <img src="https://github.com/jess-breda/medical_constrastive_learning/assets/53059059/5a97446f-4562-4ecf-80ed-202dc469a3cd" alt="Network Accuracy and Top-1 Accuracy">
 </p>
 
 ## Details
