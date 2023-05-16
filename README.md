@@ -22,7 +22,7 @@ To run on Google Colab, see [here](https://colab.research.google.com/drive/1SurN
 
 ## Details
 
-For a complete write up with all figures and citations, see X.
+For a complete write up with all figures and citations, see the [final report](/final_report.pdf).
 
 ### Dataset
 Here we used the [ChestMNIST dataset](https://medmnist.com/), which consitsts of chest-Xrays with 15 possible labels. Multi-labeled images were removed for our analyses. 
@@ -52,7 +52,7 @@ To implment learning with the constrastive model we used [triplet margin loss](h
 
 **2. Triplet Modulation** In this experiment, we tested if and how three different types of triplets affected contrastive training. Specifically, we compared embeddings and performance when normal, hard, or augmented triplet sets were used (see Methods- Pre-Training with Contrastive Learning). We found that augmenting positive the triplets led to an additional 1% increase in classification performance. Moreover, when augmentation was applied to the whole train set during fine-tuning of the classification head, there was a 1% increase in top-5 accuracy (overall accuracy stayed the same). See figures 2, 9-11, 13.
 
-**3. Model complexity**. In this experiment, we tested if a deeper, more complex base model (EfficientNet) would improve classification and post contrastive-learning. While the embeddings after constrastive learning appeared more meaningful, the overall classification accuracy signficantly decreased. See figures 5, 12, 13
+**3. Model complexity**. In this experiment, we tested if a deeper, more complex base model `h(*)` (EfficientNet) would improve classification and post contrastive-learning. While the embeddings after constrastive learning appeared more meaningful, the overall classification accuracy signficantly decreased. See figures 5, 12, 13
 
 
 
