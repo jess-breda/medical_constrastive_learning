@@ -14,7 +14,7 @@ To run on Google Colab, see [here](https://colab.research.google.com/drive/1SurN
 
 **Implementation**: Here, we implemented supervised pre-training with a contrastive triplet loss function and assessed classification performance on the chestMNIST dataset. We examined the effect of supervised pre-training on classification accuracy in a simple convolutional neural network (CNN). Then, we experimented with data augmentation, training data sampling, and modeling complexity. 
 
-**Findings**: In summary we found that pre-training with a contrastive triplet loss on triplets where the positive image was augmented resulted in a *6% increase in accuracy* and a reduced tendency to randomly classify images when compared to no pre-training.
+**Findings**: In summary we found that pre-training with a contrastive triplet loss on triplets where the positive image was augmented resulted in a *6% increase in accuracy* when compared to no pre-training.
 
 <p align="center">
   <img src="https://github.com/jess-breda/medical_constrastive_learning/assets/53059059/5a97446f-4562-4ecf-80ed-202dc469a3cd" alt="Network Accuracy and Top-1 Accuracy">
